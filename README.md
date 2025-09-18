@@ -119,12 +119,6 @@ This flow describes how documents from all ingestion channels are processed and 
 *   `pipeline.advance` finds the currently "active" Bull job for that document and **forcibly marks it as completed** (using `job.moveToCompleted()`), passing along the validated data. It also records this completion event in MongoDB for auditing purposes. It then immediately enqueues a new job for the document in the next stage of the pipeline (e.g., `ocr_extraction`).
 *   **Graceful Context Handoff**: When a document completes its **final** pipeline stage, `pipeline.advance()` notifies the `ConversationManager` to schedule a context shift. The manager attaches a one-time `.once('completed', ...)` listener to the active document's outbound queue. After the AI sends its final closing message for the current document and that message job completes, the listener fires, triggering the context shift. This ensures the user receives all messages for one document before the conversation for the next one begins.
 
-### B. Monitoring & Audit
-
-*   **Bull Board**: Provides a web UI to monitor job statuses (active, completed, failed), view job data, and manage queues.
-*   **MongoDB**: Serves as the system of record, storing all document metadata, processing states, and conversation history, providing a comprehensive audit trail.
-*   **Structured Logging (Pino)**: Detailed logs capture system events, AI interactions, and errors for debugging and operational monitoring.
-
 ---
 
 ## Flow 6: OCR Extraction & AI-Assisted Correction
@@ -262,5 +256,17 @@ This stage follows the same extensible architecture as the preceding one to ensu
  
 ---
  
-## Production Deployment & CI/CD  
+## System Observability
+
+A multi-layered approach to observability ensures system health can be monitored in real-time and issues can be debugged efficiently.
+
+*   **Job & Queue Monitoring (Bull Board)**: The Bull Board dashboard provides a real-time web UI to inspect the state of all processing queues. It's the primary tool for operational visibility, allowing for monitoring of job statuses (active, completed, failed), viewing job data, and manually managing queues if necessary.
+
+*   **Centralized Logging (Pino + Better Stack)**: The application uses Pino to generate structured, JSON-formatted logs for all significant events, AI interactions, and errors. These logs are streamed to **Better Stack**, a centralized log management platform. This provides powerful search capabilities, real-time log tailing, and the ability to create dashboards and alerts based on log patterns.
+
+*   **Data Auditing (MongoDB)**: MongoDB serves as the ultimate system of record. It stores all document metadata, the complete processing state history for each pipeline stage, and the full user conversation history, providing a comprehensive and permanent audit trail for every document processed.
+
+---
+
+## Production Deployment & CI/CD
 To keep operational overhead low we deploy everything onto a single DigitalOcean droplet. Docker Compose groups the Node.js application, the Hebrew-lemmatizer side-service and the host’s native Redis into one self-contained stack. GitHub Actions builds and publishes each image to GHCR on every push to `main`, giving us reproducible, one-command upgrades (`docker compose pull && up -d`) while layer caching in the registry keeps both the build and pull steps quick.
