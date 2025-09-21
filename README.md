@@ -1,4 +1,4 @@
-# Case Study:  Hagar™, an AI-Powered Inventory Automation
+# Hagar™, an AI-Powered Inventory Automation System
 
 ## Overview
 
